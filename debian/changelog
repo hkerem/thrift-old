@@ -1,0 +1,6 @@
+thrift (0.4.0-2) unstable; urgency=low
+
+  * Initial release.
+
+ -- H. Kerem Cevahir <kerem@medra.com.tr>  Wed, 18 Nov 2009 22:01:06 +0200
+

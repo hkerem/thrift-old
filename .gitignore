@@ -1,6 +1,11 @@
 /Makefile
 /Makefile.in
 /aclocal.m4
+/aclocal/libtool.m4
+/aclocal/ltoptions.m4
+/aclocal/ltsugar.m4
+/aclocal/ltversion.m4
+/aclocal/lt~obsolete.m4
 /autom4te.cache
 /autoscan.log
 /compiler/cpp/.deps
@@ -16,6 +21,13 @@
 /configure
 /configure.lineno
 /configure.scan
+/debian/files
+/debian/thrift.debhelper.log
+/debian/thrift.substvars
+/debian/thrift
+/debian/thrift.*.debhelper
+/debian/stamp-autotools-files
+/debian/stamp-makefile-build
 /depcomp
 /if/Makefile
 /if/Makefile.in
@@ -23,6 +35,8 @@
 /lib/Makefile
 /lib/Makefile.in
 /lib/erl/ebin
+/lib/erl/Makefile
+/lib/erl/Makefile.in
 /lib/cpp/.deps
 /lib/cpp/.libs
 /lib/cpp/Makefile
@@ -50,6 +64,8 @@
 /lib/perl/test/Makefile
 /lib/perl/test/Makefile.in
 /lib/perl/test/gen-perl
+/lib/php/Makefile
+/lib/php/Makefile.in
 /lib/py/Makefile
 /lib/py/Makefile.in
 /lib/py/build
