@@ -20,7 +20,7 @@
 #
 
 ./cleanup.sh
-(cd lib/php/src/ext/thrift_protocol && phpize)
+(cd lib/php/src/ext/thrift_protocol && phpize5)
 
 set -e
 
