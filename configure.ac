@@ -17,9 +17,9 @@
 # under the License.
 #
 
-AC_PREREQ(2.59)
+AC_PREREQ(2.65)
 
-AC_INIT([thrift], [0.4.0])
+AC_INIT([thrift], [0.5.0])
 
 AC_CONFIG_AUX_DIR([.])
 
@@ -48,6 +48,13 @@ AC_ARG_VAR([PHP_PREFIX], [Prefix for installing PHP modules.
                          Default = "/usr/lib/php"])
 AS_IF([test "x$PHP_PREFIX" = x], [PHP_PREFIX="/usr/lib/php"])
 
+AC_ARG_VAR([PHP_CONFIG_PREFIX],
+           [Prefix for installing PHP extension module .ini file.
+            (Normal --prefix is ignored for PHP because PHP has
+             different conventions.)
+           Default = "/etc/php.d"])
+AS_IF([test "x$PHP_CONFIG_PREFIX" = x], [PHP_CONFIG_PREFIX="/etc/php.d"])
+
 AC_ARG_VAR([PERL_PREFIX], [Prefix for installing Perl modules.
                            (Normal --prefix is ignored for Perl because
                            Perl has different conventions.)
@@ -67,20 +74,34 @@ AC_PROG_LN_S
 AC_PROG_MKDIR_P
 
 AC_LANG([C++])
-AX_BOOST_BASE([1.33.1])
 
-AX_LIB_EVENT([1.0])
-AM_CONDITIONAL([AMX_HAVE_LIBEVENT], [test "$success" = "yes"])
+AX_THRIFT_LIB(cpp, [C++], yes)
+have_cpp=no
+if test "$with_cpp" = "yes";  then
+  AX_BOOST_BASE([1.33.1])
+  if test "x$succeeded" == "xyes" ; then
+    have_cpp="yes"
+  fi
 
-AX_LIB_ZLIB([1.2.3])
-AM_CONDITIONAL([AMX_HAVE_ZLIB], [test "$success" = "yes"])
+  AX_LIB_EVENT([1.0])
+  have_libevent=$success
+
+  AX_LIB_ZLIB([1.2.3])
+  have_zlib=$success
+fi
+AM_CONDITIONAL([WITH_CPP], [test "$have_cpp" = "yes"])
+AM_CONDITIONAL([AMX_HAVE_LIBEVENT], [test "$have_libevent" = "yes"])
+AM_CONDITIONAL([AMX_HAVE_ZLIB], [test "$have_zlib" = "yes"])
 
 AX_THRIFT_LIB(csharp, [CSharp], yes)
 if test "$with_csharp" = "yes";  then
   PKG_CHECK_MODULES(MONO, mono >= 2.0.0, net_3_5=yes, net_3_5=no)
   PKG_CHECK_MODULES(MONO, mono >= 1.2.4, have_mono=yes, have_mono=no)
+  if test "$have_mono" = "yes" ; then
+    have_csharp="yes"
+  fi
 fi
-AM_CONDITIONAL(WITH_MONO, [test "$have_mono" = "yes"])
+AM_CONDITIONAL(WITH_MONO, [test "$have_csharp" = "yes"])
 AM_CONDITIONAL(NET_2_0, [test "$net_3_5" = "no"])
 
 AX_THRIFT_LIB(java, [Java], yes)
@@ -98,43 +119,77 @@ if test "$with_java" = "yes";  then
   fi
   AC_SUBST(CLASSPATH)
   AC_SUBST(ANT_FLAGS)
+  if test "x$JAVAC" != "x" && test "x$JAVAC" != "x" && test "x$ANT" != "x" ; then
+    have_java="yes"
+  fi
 fi
-AM_CONDITIONAL([WITH_JAVA],
-               [test -n "$ANT" -a -n "$JAVA" -a -n "$JAVAC"])
+AM_CONDITIONAL([WITH_JAVA], [test "$have_java" = "yes"])
 
 AX_THRIFT_LIB(erlang, [Erlang], yes)
 if test "$with_erlang" = "yes";  then
   AC_ERLANG_PATH_ERL
   AC_ERLANG_PATH_ERLC
-  AC_ERLANG_SUBST_INSTALL_LIB_SUBDIR(AC_PACKAGE_NAME, AC_PACKAGE_VERSION)
+  if test -n "$ERLC" ; then
+    AC_ERLANG_SUBST_LIB_DIR
+    # Install into the detected Erlang directory instead of $libdir/erlang/lib
+    ERLANG_INSTALL_LIB_DIR="$ERLANG_LIB_DIR"
+    AC_ERLANG_SUBST_INSTALL_LIB_SUBDIR(AC_PACKAGE_NAME, AC_PACKAGE_VERSION)
+  fi
+  if test -n "$ERL" -a -n "$ERLC" ; then
+    have_erlang="yes"
+  fi
 fi
-AM_CONDITIONAL(WITH_ERLANG, [test -n "$ERL" -a -n "$ERLC"])
+AM_CONDITIONAL(WITH_ERLANG, [test "$have_erlang" = "yes"])
 
-AX_THRIFT_LIB(py, [Python], yes)
-if test "$with_py" = "yes";  then
+AX_THRIFT_LIB(python, [Python], yes)
+if test "$with_python" = "yes";  then
   AM_PATH_PYTHON(2.4,, :)
+  if test "x$PYTHON" != "x" && test "x$PYTHON" != "x:" ; then
+    have_python="yes"
+  fi
 fi
-AM_CONDITIONAL(WITH_PYTHON, [test -n "$PYTHON" -a "$PYTHON" != ":"])
+AM_CONDITIONAL(WITH_PYTHON, [test "$have_python" = "yes"])
 
 AX_THRIFT_LIB(perl, [Perl], yes)
 if test "$with_perl" = "yes"; then
   AC_PATH_PROG([PERL], [perl])
+  if test -n "$PERL" ; then
+    AC_PROG_PERL_MODULES([Bit::Vector], success="yes", success="no")
+    have_perl_bit_vector="$success"
+  fi
+  if test -n "$PERL" -a "$have_perl_bit_vector" = "yes" ; then
+    have_perl="yes"
+  fi
 fi
-AM_CONDITIONAL(WITH_PERL, [test -n "$PERL"])
+AM_CONDITIONAL(WITH_PERL, [test "$have_perl" = "yes"])
 
 AX_THRIFT_LIB(php, [PHP], yes)
 if test "$with_php" = "yes"; then
   AC_PATH_PROG([PHP], [php])
+  if test -n "$PHP" ; then
+    have_php="yes"
+  fi
 fi
-AM_CONDITIONAL(WITH_PHP, [test -n "$PHP"])
+AM_CONDITIONAL(WITH_PHP, [test "$have_php" = "yes"])
+
+AX_THRIFT_LIB(php_extension, [PHP_EXTENSION], yes)
+if test "$with_php_extension" = "yes"; then
+  AC_PATH_PROG([PHP_CONFIG], [php-config])
+  AC_CONFIG_SUBDIRS([lib/php/src/ext/thrift_protocol])
+fi
+AM_CONDITIONAL(WITH_PHP_EXTENSION, [test -n "$PHP_CONFIG"])
 
 AX_THRIFT_LIB(ruby, [Ruby], yes)
+have_ruby=no
 if test "$with_ruby" = "yes"; then
   AC_PATH_PROG([RUBY], [ruby])
   AC_PATH_PROG([RSPEC], [spec])
+  if test "x$RUBY" != "x" ; then
+    have_ruby="yes"
+  fi
 fi
-AM_CONDITIONAL(WITH_RUBY, [test -n "$RUBY"])
-AM_CONDITIONAL(HAVE_RSPEC, [test -n "$RSPEC"])
+AM_CONDITIONAL(WITH_RUBY, [test "$have_ruby" = "yes"])
+AM_CONDITIONAL(HAVE_RSPEC, [test "x$RSPEC" != "x"])
 
 
 AC_C_CONST
@@ -145,7 +200,7 @@ AC_HEADER_STDBOOL
 AC_HEADER_STDC
 AC_HEADER_TIME
 AC_CHECK_HEADERS([arpa/inet.h])
-AC_CHECK_HEADERS([endian.h])
+AC_CHECK_HEADERS([sys/param.h])
 AC_CHECK_HEADERS([fcntl.h])
 AC_CHECK_HEADERS([inttypes.h])
 AC_CHECK_HEADERS([limits.h])
@@ -226,7 +281,9 @@ AC_CHECK_FUNCS([clock_gettime])
 AC_CHECK_FUNCS([sched_get_priority_min])
 AC_CHECK_FUNCS([sched_get_priority_max])
 
-AX_SIGNED_RIGHT_SHIFT
+if test "$cross_compiling" = "no" ; then
+  AX_SIGNED_RIGHT_SHIFT
+fi
 
 AX_THRIFT_GEN(cpp, [C++], yes)
 AM_CONDITIONAL([THRIFT_GEN_cpp], [test "$ax_thrift_gen_cpp" = "yes"])
@@ -269,11 +326,13 @@ AC_CONFIG_FILES([
   compiler/cpp/version.h
   lib/Makefile
   lib/cpp/Makefile
+  lib/cpp/test/Makefile
   lib/cpp/thrift.pc
   lib/cpp/thrift-nb.pc
   lib/cpp/thrift-z.pc
   lib/csharp/Makefile
   lib/erl/Makefile
+  lib/erl/src/Makefile
   lib/java/Makefile
   lib/perl/Makefile
   lib/perl/test/Makefile
@@ -286,3 +345,54 @@ AC_CONFIG_FILES([
 ])
 
 AC_OUTPUT
+
+
+echo
+echo "$PACKAGE $VERSION"
+echo
+echo "Building code generators ..... :$thrift_generators"
+echo
+echo "Building C++ Library ......... : $have_cpp"
+echo "Building Java Library ........ : $have_java"
+echo "Building C# Library .......... : $have_csharp"
+echo "Building Python Library ...... : $have_python"
+echo "Building Ruby Library ........ : $have_ruby"
+echo "Building Perl Library ........ : $have_perl"
+echo "Building PHP Library ......... : $have_php"
+echo "Building Erlang Library ...... : $have_erlang"
+if test "$have_cpp" = "yes" ; then
+  echo
+  echo "Building TZlibTransport ...... : $have_zlib"
+  echo "Building TNonblockingServer .. : $have_libevent"
+fi
+if test "$have_java" = "yes" ; then
+  echo
+  echo "Using javac .................. : $JAVAC"
+  echo "Using java ................... : $JAVA"
+  echo "Using ant .................... : $ANT"
+fi
+if test "$have_csharp" = "yes" ; then
+  echo
+  echo "Using .NET 3.5 ............... : $net_3_5"
+fi
+if test "$have_python" = "yes" ; then
+  echo
+  echo "Using Python ................. : $PYTHON"
+fi
+if test "$have_ruby" = "yes" ; then
+  echo
+  echo "Using Ruby ................... : $RUBY"
+  echo "Using rspec .................. : $RSPEC"
+fi
+if test "$have_perl" = "yes" ; then
+  echo
+  echo "Using Perl ................... : $PERL"
+fi
+if test "$have_erlang" = "yes" ; then
+  echo
+  echo "Using erlc ................... : $ERLC"
+fi
+echo
+echo "If something is missing that you think should be present,"
+echo "please skim the output of configure to find the missing"
+echo "component.  Details are present in config.log."

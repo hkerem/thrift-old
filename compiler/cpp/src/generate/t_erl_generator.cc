@@ -298,7 +298,7 @@ void t_erl_generator::generate_enum(t_enum* tenum) {
     string name = capitalize((*c_iter)->get_name());
 
     f_types_hrl_file_ <<
-      indent() << "-define(" << program_name_ << "_" << name << ", " << value << ")."<< endl;
+      indent() << "-define(" << program_name_ << "_" << tenum->get_name() << "_" << name << ", " << value << ")."<< endl;
   }
 
   f_types_hrl_file_ << endl;
@@ -649,8 +649,8 @@ void t_erl_generator::generate_service_interface(t_service* tservice) {
                          << "_thrift:function_info(Function, InfoType)." << endl;
       indent_down();
   } else {
-      // Dummy function_info so we don't worry about the ;s
-      indent(f_service_) << "function_info(xxx, dummy) -> dummy." << endl;
+      // Use a special return code for nonexistent functions
+      indent(f_service_) << "function_info(_Func, _Info) -> no_function." << endl;
   }
 
   indent(f_service_) << endl;

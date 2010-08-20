@@ -50,6 +50,9 @@ class t_cpp_generator : public t_oop_generator {
   {
     std::map<std::string, std::string>::const_iterator iter;
 
+    iter = parsed_options.find("pure_enums");
+    gen_pure_enums_ = (iter != parsed_options.end());
+
     iter = parsed_options.find("dense");
     gen_dense_ = (iter != parsed_options.end());
 
@@ -202,6 +205,11 @@ class t_cpp_generator : public t_oop_generator {
    * empty string if no include prefix should be used.
    */
   std::string get_include_prefix(const t_program& program) const;
+
+  /**
+   * True iff we should generate pure enums for Thrift enums, instead of wrapper classes.
+   */
+  bool gen_pure_enums_;
 
   /**
    * True iff we should generate local reflection metadata for TDenseProtocol.
@@ -363,8 +371,15 @@ void t_cpp_generator::generate_typedef(t_typedef* ttypedef) {
  * @param tenum The enumeration
  */
 void t_cpp_generator::generate_enum(t_enum* tenum) {
+  std::string enum_name = tenum->get_name();
+  if (!gen_pure_enums_) {
+    enum_name = "type";
+    f_types_ <<
+      indent() << "struct " << tenum->get_name() << " {" << endl;
+    indent_up();
+  }
   f_types_ <<
-    indent() << "enum " << tenum->get_name() << " {" << endl;
+    indent() << "enum " << enum_name << " {" << endl;
   indent_up();
 
   vector<t_enum_value*> constants = tenum->get_constants();
@@ -386,10 +401,15 @@ void t_cpp_generator::generate_enum(t_enum* tenum) {
   }
 
   indent_down();
-  f_types_ <<
-    endl <<
-    "};" << endl <<
-    endl;
+  f_types_ << endl;
+  indent(f_types_) << "};" << endl;
+
+  if (!gen_pure_enums_) {
+    indent_down();
+    f_types_ << "};" << endl;
+  }
+
+  f_types_ << endl;
 
   generate_local_reflection(f_types_, tenum, false);
   generate_local_reflection(f_types_impl_, tenum, true);
@@ -625,6 +645,59 @@ void t_cpp_generator::generate_struct_definition(ofstream& out,
     extends = " : public ::apache::thrift::TException";
   }
 
+  // Get members
+  vector<t_field*>::const_iterator m_iter;
+  const vector<t_field*>& members = tstruct->get_members();
+
+  // Write the isset structure declaration outside the class. This makes
+  // the generated code amenable to processing by SWIG.
+  // We only declare the struct if it gets used in the class.
+
+  // Isset struct has boolean fields, but only for non-required fields.
+  bool has_nonrequired_fields = false;
+  for (m_iter = members.begin(); m_iter != members.end(); ++m_iter) {
+    if ((*m_iter)->get_req() != t_field::T_REQUIRED)
+      has_nonrequired_fields = true;
+  }
+
+  if (has_nonrequired_fields && (!pointers || read)) {
+
+    out <<
+      indent() << "typedef struct _" << tstruct->get_name() << "__isset {" << endl;
+    indent_up();
+
+    indent(out) <<
+      "_" << tstruct->get_name() << "__isset() ";
+    bool first = true;
+    for (m_iter = members.begin(); m_iter != members.end(); ++m_iter) {
+      if ((*m_iter)->get_req() == t_field::T_REQUIRED) {
+        continue;
+      }
+      if (first) {
+        first = false;
+        out <<
+          ": " << (*m_iter)->get_name() << "(false)";
+      } else {
+        out <<
+          ", " << (*m_iter)->get_name() << "(false)";
+      }
+    }
+    out << " {}" << endl;
+
+    for (m_iter = members.begin(); m_iter != members.end(); ++m_iter) {
+      if ((*m_iter)->get_req() != t_field::T_REQUIRED) {
+        indent(out) <<
+          "bool " << (*m_iter)->get_name() << ";" << endl;
+        }
+      }
+
+      indent_down();
+      indent(out) <<
+        "} _" << tstruct->get_name() << "__isset;" << endl;
+    }
+
+  out << endl;
+
   // Open struct def
   out <<
     indent() << "class " << tstruct->get_name() << extends << " {" << endl <<
@@ -634,10 +707,6 @@ void t_cpp_generator::generate_struct_definition(ofstream& out,
 
   // Put the fingerprint up top for all to see.
   generate_struct_fingerprint(out, tstruct, false);
-
-  // Get members
-  vector<t_field*>::const_iterator m_iter;
-  const vector<t_field*>& members = tstruct->get_members();
 
   if (!pointers) {
     // Default constructor
@@ -703,47 +772,11 @@ void t_cpp_generator::generate_struct_definition(ofstream& out,
       declare_field(*m_iter, false, pointers && !(*m_iter)->get_type()->is_xception(), !read) << endl;
   }
 
-  // Isset struct has boolean fields, but only for non-required fields.
-  bool has_nonrequired_fields = false;
-  for (m_iter = members.begin(); m_iter != members.end(); ++m_iter) {
-    if ((*m_iter)->get_req() != t_field::T_REQUIRED)
-      has_nonrequired_fields = true;
-  }
-
+  // Add the __isset data member if we need it, using the definition from above
   if (has_nonrequired_fields && (!pointers || read)) {
     out <<
       endl <<
-      indent() << "struct __isset {" << endl;
-    indent_up();
-
-      indent(out) <<
-        "__isset() : ";
-      bool first = true;
-      for (m_iter = members.begin(); m_iter != members.end(); ++m_iter) {
-        if ((*m_iter)->get_req() == t_field::T_REQUIRED) {
-          continue;
-        }
-        if (first) {
-          first = false;
-          out <<
-            (*m_iter)->get_name() << "(false)";
-        } else {
-          out <<
-            ", " << (*m_iter)->get_name() << "(false)";
-        }
-      }
-      out << " {}" << endl;
-
-      for (m_iter = members.begin(); m_iter != members.end(); ++m_iter) {
-        if ((*m_iter)->get_req() != t_field::T_REQUIRED) {
-          indent(out) <<
-            "bool " << (*m_iter)->get_name() << ";" << endl;
-        }
-      }
-
-    indent_down();
-    indent(out) <<
-      "} __isset;" << endl;
+      indent() << "_" << tstruct->get_name() << "__isset __isset;" << endl;
   }
 
   out << endl;
@@ -2751,6 +2784,10 @@ string t_cpp_generator::type_name(t_type* ttype, bool in_typedef, bool arg) {
     pname = class_prefix + ttype->get_name();
   }
 
+  if (ttype->is_enum() && !gen_pure_enums_) {
+    pname += "::type";
+  }
+
   if (arg) {
     if (is_complex_type(ttype)) {
       return "const " + pname + "&";
@@ -3003,6 +3040,7 @@ string t_cpp_generator::get_include_prefix(const t_program& program) const {
 
 
 THRIFT_REGISTER_GENERATOR(cpp, "C++",
+"    pure_enums:      Generate pure enums instead of wrapper classes.\n"
 "    dense:           Generate type specifications for the dense protocol.\n"
 "    include_prefix:  Use full include paths in generated files.\n"
 );

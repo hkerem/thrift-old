@@ -19,7 +19,9 @@
 
 package org.apache.thrift.test;
 
+import java.nio.ByteBuffer;
 import java.util.LinkedList;
+
 import thrift.test.OneOfEachBeans;
 
 public class JavaBeansTest {
@@ -52,13 +54,13 @@ public class JavaBeansTest {
       throw new RuntimeException("isSet method error: unset field returned as set!");
 
     for (int i = 1; i < 12; i++){
-      if (ooe.isSet(i))
+      if (ooe.isSet(ooe.fieldForId(i)))
         throw new RuntimeException("isSet method error: unset field " + i + " returned as set!");
     }
 
     // Everything is set
     ooe.set_a_bite((byte) 1);
-    ooe.set_base64("bytes".getBytes());
+    ooe.set_base64(ByteBuffer.wrap("bytes".getBytes()));
     ooe.set_byte_list(new LinkedList<Byte>());
     ooe.set_double_precision(1);
     ooe.set_i16_list(new LinkedList<Short>());
@@ -93,14 +95,14 @@ public class JavaBeansTest {
       throw new RuntimeException("isSet method error: set field returned as unset!");
 
     for (int i = 1; i < 12; i++){
-      if (!ooe.isSet(i))
+      if (!ooe.isSet(ooe.fieldForId(i)))
         throw new RuntimeException("isSet method error: set field " + i + " returned as unset!");
     }
 
     // Should throw exception when field doesn't exist
     boolean exceptionThrown = false;
     try{
-      if (ooe.isSet(100));
+      if (ooe.isSet(ooe.fieldForId(100)));
     } catch (IllegalArgumentException e){
       exceptionThrown = true;
     }
