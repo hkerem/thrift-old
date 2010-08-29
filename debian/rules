@@ -6,3 +6,8 @@ export PHP_PREFIX=/usr/share/php/
 include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/class/autotools.mk
 
+debian/stamp-autotools-files:
+	./bootstrap.sh
+	touch $@
+
+
