@@ -2,7 +2,7 @@ Source: thrift
 Section: devel
 Priority: optional
 Maintainer: H. Kerem Cevahir <kerem@medra.com.tr>
-Build-Depends: debhelper (>= 5), cdbs, g++, libboost-dev, libevent-dev, python-dev, automake, pkg-config, libtool, flex, bison, sun-java6-jdk, php5-cli, erlang-nox
+Build-Depends: debhelper (>= 5), cdbs, g++, libboost-dev, libevent-dev, python-dev, automake, libtool, pkg-config, libtool, flex, bison, sun-java6-jdk, php5-cli, erlang-nox
 Standards-Version: 3.8.0
 
 Package: thrift
