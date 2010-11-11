@@ -78,10 +78,14 @@
 /lib/c_glib/Makefile.in
 /lib/c_glib/Makefile
 /lib/c_glib/thriftc.pc
+/lib/c_glib/thrift_c_glib.pc
+/lib/c_glib/test/Makefile
+/lib/c_glib/test/Makefile.in
 /lib/c_glib/test/*.o
 /lib/c_glib/test/*.lo
 /lib/c_glib/test/testwrapper.sh
 /lib/c_glib/test/testwrapper-test*
+/lib/c_glib/test/test-wrapper.sh
 /lib/c_glib/test/.deps
 /lib/c_glib/test/.libs
 /lib/c_glib/test/gen-cpp/
@@ -89,6 +93,8 @@
 /lib/csharp/Makefile
 /lib/csharp/Makefile.in
 /lib/hs/dist
+/lib/hs/Makefile
+/lib/hs/Makefile.in
 /lib/java/Makefile
 /lib/java/Makefile.in
 /lib/java/build
@@ -148,9 +154,13 @@
 /stamp-h1
 /test/Makefile
 /test/Makefile.in
+/test/hs/Makefile
+/test/hs/Makefile.in
 /test/py/Makefile
 /test/py/Makefile.in
 /test/py/gen-py
+/test/py.twisted/Makefile
+/test/py.twisted/Makefile.in
 /test/rb/Makefile
 /test/rb/Makefile.in
 /ylwrap
