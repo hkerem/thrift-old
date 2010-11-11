@@ -37,6 +37,7 @@ php_DATA =  \
 phpprotocoldir = $(phpdir)/protocol
 phpprotocol_DATA = \
   src/protocol/TBinaryProtocol.php \
+  src/protocol/TBinarySerializer.php \
   src/protocol/TProtocol.php
 
 phptransportdir = $(phpdir)/transport
@@ -50,5 +51,7 @@ phptransport_DATA = \
   src/transport/TSocket.php \
   src/transport/TSocketPool.php \
   src/transport/TTransport.php
+
+EXTRA_DIST = src thrift_protocol.ini README.apache
 
 MAINTAINERCLEANFILES = Makefile Makefile.in

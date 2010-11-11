@@ -23,6 +23,10 @@ if WITH_CPP
 SUBDIRS += cpp
 endif
 
+if WITH_C_GLIB
+SUBDIRS += c_glib
+endif
+
 if WITH_MONO
 SUBDIRS += csharp
 endif
@@ -43,6 +47,10 @@ if WITH_RUBY
 SUBDIRS += rb
 endif
 
+if WITH_HASKELL
+SUBDIRS += hs
+endif
+
 if WITH_PERL
 SUBDIRS += perl
 endif
@@ -55,10 +63,7 @@ endif
 # so they will end up in our release tarballs.
 EXTRA_DIST = \
   cocoa \
-  hs \
   ocaml \
-  php \
-  erl \
   js \
   as3 \
   st

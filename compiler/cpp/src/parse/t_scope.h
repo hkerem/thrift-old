@@ -115,8 +115,11 @@ class t_scope {
           throw "No enum value or constant found named \"" + const_val->get_identifier() + "\"!";
         }
 
-        if (constant->get_type()->is_base_type()) {
-          switch (((t_base_type*)constant->get_type())->get_base()) {
+        // Resolve typedefs to the underlying type
+        t_type* const_type = constant->get_type()->get_true_type();
+
+        if (const_type->is_base_type()) {
+          switch (((t_base_type*)const_type)->get_base()) {
             case t_base_type::TYPE_I16:
             case t_base_type::TYPE_I32:
             case t_base_type::TYPE_I64:
@@ -133,7 +136,7 @@ class t_scope {
             case t_base_type::TYPE_VOID:
               throw "Constants cannot be of type VOID";
           }
-        } else if (constant->get_type()->is_map()) {
+        } else if (const_type->is_map()) {
           const std::map<t_const_value*, t_const_value*>& map = constant->get_value()->get_map();
           std::map<t_const_value*, t_const_value*>::const_iterator v_iter;
 
@@ -141,7 +144,7 @@ class t_scope {
           for (v_iter = map.begin(); v_iter != map.end(); ++v_iter) {
             const_val->add_map(v_iter->first, v_iter->second);
           }
-        } else if (constant->get_type()->is_list()) {
+        } else if (const_type->is_list()) {
           const std::vector<t_const_value*>& val = constant->get_value()->get_list();
           std::vector<t_const_value*>::const_iterator v_iter;
 
@@ -161,7 +164,7 @@ class t_scope {
         valstm << const_val->get_integer();
         throw "Couldn't find a named value in enum " + tenum->get_name() + " for value " + valstm.str();
       }
-      const_val->set_identifier(enum_value->get_name());
+      const_val->set_identifier(tenum->get_name() + "." + enum_value->get_name());
       const_val->set_enum(tenum);
     }
   }

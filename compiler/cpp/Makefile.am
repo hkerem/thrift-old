@@ -56,9 +56,13 @@ thrift_SOURCES = src/thrifty.yy \
                  src/parse/t_scope.h \
                  src/parse/t_const.h \
                  src/parse/t_const_value.h \
+                 src/parse/parse.cc \
                  src/generate/t_generator.h \
                  src/generate/t_oop_generator.h
 
+if THRIFT_GEN_c_glib
+thrift_SOURCES += src/generate/t_c_glib_generator.cc
+endif
 if THRIFT_GEN_cpp
 thrift_SOURCES += src/generate/t_cpp_generator.cc
 endif
@@ -106,6 +110,9 @@ thrift_SOURCES += src/generate/t_html_generator.cc
 endif
 if THRIFT_GEN_js
 thrift_SOURCES += src/generate/t_js_generator.cc
+endif
+if THRIFT_GEN_javame
+thrift_SOURCES += src/generate/t_javame_generator.cc
 endif
 
 thrift_CXXFLAGS = -Wall -I$(srcdir)/src

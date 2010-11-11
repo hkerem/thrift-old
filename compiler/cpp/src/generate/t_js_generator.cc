@@ -276,22 +276,15 @@ void t_js_generator::generate_enum(t_enum* tenum) {
 
   vector<t_enum_value*> constants = tenum->get_constants();
   vector<t_enum_value*>::iterator c_iter;
-  int value = -1;
   for (c_iter = constants.begin(); c_iter != constants.end(); ++c_iter) {
-    if ((*c_iter)->has_value()) {
-      value = (*c_iter)->get_value();
-    } else {
-      ++value;
-    }
-
-    if(c_iter != constants.begin())
+    int value = (*c_iter)->get_value();
+    if (c_iter != constants.begin())
         f_types_ << ",";
 
     f_types_ << "'" << (*c_iter)->get_name() << "' : " << value << endl;
   }
 
   f_types_ << "}"<<endl;
-
 }
 
 /**
@@ -360,10 +353,11 @@ string t_js_generator::render_const_value(t_type* type, t_const_value* value) {
       if (field_type == NULL) {
         throw "type error: " + type->get_name() + " has no field " + v_iter->first->get_string();
       }
+      if (v_iter != val.begin())
+        out << ",";
       out << render_const_value(g_type_string, v_iter->first);
       out << " : ";
       out << render_const_value(field_type, v_iter->second);
-      out << ",";
     }
 
     out << "})";
@@ -380,15 +374,16 @@ string t_js_generator::render_const_value(t_type* type, t_const_value* value) {
     const map<t_const_value*, t_const_value*>& val = value->get_map();
     map<t_const_value*, t_const_value*>::const_iterator v_iter;
     for (v_iter = val.begin(); v_iter != val.end(); ++v_iter) {
+        if (v_iter != val.begin())
+          out << "," << endl;
 
         out << render_const_value(ktype, v_iter->first);
 
         out << " : ";
         out << render_const_value(vtype, v_iter->second);
-        out << "," << endl;
     }
 
-    out << "}";
+    out << endl << "}";
   } else if (type->is_list() || type->is_set()) {
     t_type* etype;
     if (type->is_list()) {
@@ -400,9 +395,9 @@ string t_js_generator::render_const_value(t_type* type, t_const_value* value) {
     const vector<t_const_value*>& val = value->get_list();
     vector<t_const_value*>::const_iterator v_iter;
     for (v_iter = val.begin(); v_iter != val.end(); ++v_iter) {
-
+      if (v_iter != val.begin())
+        out << ",";
       out << render_const_value(etype, *v_iter);
-      out << ",";
     }
     out << "]";
   }
@@ -1347,29 +1342,23 @@ string t_js_generator::declare_field(t_field* tfield, bool init, bool obj) {
       case t_base_type::TYPE_VOID:
         break;
       case t_base_type::TYPE_STRING:
-        result += " = ''";
-        break;
       case t_base_type::TYPE_BOOL:
-        result += " = false";
-        break;
       case t_base_type::TYPE_BYTE:
       case t_base_type::TYPE_I16:
       case t_base_type::TYPE_I32:
       case t_base_type::TYPE_I64:
-        result += " = 0";
-        break;
       case t_base_type::TYPE_DOUBLE:
-        result += " = 0.0";
+        result += " = null";
         break;
       default:
         throw "compiler error: no JS initializer for base type " + t_base_type::t_base_name(tbase);
       }
     } else if (type->is_enum()) {
-      result += " = 0";
+      result += " = null";
     } else if (type->is_map()){
-      result += " = {}";
+      result += " = null";
     } else if (type->is_container()) {
-      result += " = []";
+      result += " = null";
     } else if (type->is_struct() || type->is_xception()) {
       if (obj) {
           result += " = new " +js_namespace(type->get_program()) + type->get_name() + "()";
@@ -1474,4 +1463,5 @@ string t_js_generator ::type_to_enum(t_type* type) {
 }
 
 
-THRIFT_REGISTER_GENERATOR(js, "Javascript", "");
+THRIFT_REGISTER_GENERATOR(js, "Javascript", "")
+

@@ -333,10 +333,8 @@ void t_cocoa_generator::generate_enum(t_enum* tenum) {
     }
     f_header_ <<
       indent() << tenum->get_name() << "_" << (*c_iter)->get_name();
-    if ((*c_iter)->has_value()) {
-      f_header_ <<
-        " = " << (*c_iter)->get_value();
-    }
+    f_header_ <<
+      " = " << (*c_iter)->get_value();
   }
 
   indent_down();
@@ -2464,4 +2462,5 @@ string t_cocoa_generator::call_field_setter(t_field* tfield, string fieldName) {
 
 THRIFT_REGISTER_GENERATOR(cocoa, "Cocoa",
 "    log_unexpected:  Log every time an unexpected field ID or type is encountered.\n"
-);
+)
+

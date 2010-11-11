@@ -21,18 +21,23 @@ SUBDIRS =
 
 if WITH_PYTHON
 SUBDIRS += py
+SUBDIRS += py.twisted
 endif
 
 if WITH_RUBY
 SUBDIRS += rb
 endif
 
+if WITH_HASKELL
+SUBDIRS += hs
+endif
 
 EXTRA_DIST = \
 	cpp \
 	threads \
 	csharp \
 	py \
+	py.twisted \
 	rb \
 	perl \
 	php \

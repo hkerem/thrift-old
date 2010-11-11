@@ -329,14 +329,8 @@ void t_st_generator::generate_enum(t_enum* tenum) {
 
   vector<t_enum_value*> constants = tenum->get_constants();
   vector<t_enum_value*>::iterator c_iter;
-  int value = -1;
   for (c_iter = constants.begin(); c_iter != constants.end(); ++c_iter) {
-    if ((*c_iter)->has_value()) {
-      value = (*c_iter)->get_value();
-    } else {
-      ++value;
-    }
-
+    int value = (*c_iter)->get_value();
     f_ << "\tat: '" << (*c_iter)->get_name() << "' put: " << value << ";" << endl;
   }
 
@@ -1057,4 +1051,5 @@ string t_st_generator::type_to_enum(t_type* type) {
 }
 
 
-THRIFT_REGISTER_GENERATOR(st, "Smalltalk", "");
+THRIFT_REGISTER_GENERATOR(st, "Smalltalk", "")
+

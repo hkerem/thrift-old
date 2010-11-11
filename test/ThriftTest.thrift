@@ -21,6 +21,7 @@
  * details.
  */
 
+namespace c_glib TTest
 namespace java thrift.test
 namespace cpp thrift.test
 namespace rb Thrift.Test
@@ -28,6 +29,8 @@ namespace perl ThriftTest
 namespace csharp Thrift.Test
 namespace js ThriftTest
 namespace st ThriftTest
+namespace py ThriftTest
+namespace py.twisted ThriftTest
 namespace * thrift.test
 
 /**
@@ -42,6 +45,10 @@ enum Numberz
   SIX,
   EIGHT = 8
 }
+
+const Numberz myNumberz = Numberz.ONE;
+// the following is expected to fail:
+// const Numberz urNumberz = ONE;
 
 typedef i64 UserId
 
@@ -89,7 +96,8 @@ struct Insanity
 struct CrazyNesting {
   1: string string_field,
   2: optional set<Insanity> set_field,
-  3: required list< map<set<i32>,map<i32,set<list<map<Insanity,string>>>>>> list_field
+  3: required list< map<set<i32>,map<i32,set<list<map<Insanity,string>>>>>> list_field,
+  4: binary binary_field
 }
 
 exception Xception {
@@ -179,4 +187,8 @@ struct ListTypeVersioningV1 {
 struct ListTypeVersioningV2 {
        1: list<string> strings;
        2: string hello;
+}
+
+struct GuessProtocolStruct {
+  7: map<string,string> map_field,
 }

@@ -47,7 +47,11 @@ check_PROGRAMS = \
 	DebugProtoTest \
 	JSONProtoTest \
 	OptionalRequiredTest \
+	SpecializationTest \
 	AllProtocolsTest \
+	TransportTest \
+	ZlibTest \
+	TFileTransportTest \
 	UnitTests
 
 TESTS = \
@@ -58,7 +62,22 @@ UnitTests_SOURCES = \
 	TMemoryBufferTest.cpp \
 	TBufferBaseTest.cpp
 
-UnitTests_LDADD = libtestgencpp.la -lboost_unit_test_framework
+UnitTests_LDADD = $(BOOST_LDFLAGS) libtestgencpp.la -lboost_unit_test_framework
+
+TransportTest_SOURCES = \
+	TransportTest.cpp
+
+TransportTest_LDADD = libtestgencpp.la $(top_builddir)/lib/cpp/libthriftz.la -l:libboost_unit_test_framework.a -lz
+
+ZlibTest_SOURCES = \
+	ZlibTest.cpp
+
+ZlibTest_LDADD = libtestgencpp.la $(top_builddir)/lib/cpp/libthriftz.la -l:libboost_unit_test_framework.a -lz
+
+TFileTransportTest_SOURCES = \
+	TFileTransportTest.cpp
+
+TFileTransportTest_LDADD = libtestgencpp.la -l:libboost_unit_test_framework.a
 
 #
 # TFDTransportTest
@@ -114,6 +133,14 @@ OptionalRequiredTest_SOURCES = \
 
 OptionalRequiredTest_LDADD = libtestgencpp.la
 
+#
+# SpecializationTest
+#
+SpecializationTest_SOURCES = \
+	SpecializationTest.cpp
+
+SpecializationTest_LDADD = libtestgencpp.la
+
 
 #
 # Common thrift code generation rules
@@ -141,7 +168,6 @@ clean-local:
 	$(RM) -r gen-cpp
 
 EXTRA_DIST = \
-	ZlibTest.cpp \
 	DenseProtoTest.cpp \
 	ThriftTest_extras.cpp \
 	DebugProtoTest_extras.cpp

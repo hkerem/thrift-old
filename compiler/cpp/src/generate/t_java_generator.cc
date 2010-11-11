@@ -388,13 +388,8 @@ void t_java_generator::generate_enum(t_enum* tenum) {
   vector<t_enum_value*> constants = tenum->get_constants();
   vector<t_enum_value*>::iterator c_iter;
   bool first = true;
-  int value = -1;
   for (c_iter = constants.begin(); c_iter != constants.end(); ++c_iter) {
-    if ((*c_iter)->has_value()) {
-      value = (*c_iter)->get_value();
-    } else {
-      ++value;
-    }
+    int value = (*c_iter)->get_value();
 
     if (first) {
       first = false;
@@ -432,15 +427,8 @@ void t_java_generator::generate_enum(t_enum* tenum) {
   indent(f_enum) << "switch (value) {" << endl;
   indent_up();
 
-  value = -1;
-
   for (c_iter = constants.begin(); c_iter != constants.end(); ++c_iter) {
-    if ((*c_iter)->has_value()) {
-      value = (*c_iter)->get_value();
-    } else {
-      ++value;
-    }
-
+    int value = (*c_iter)->get_value();
     indent(f_enum) << "case " << value << ":" << endl;
     indent(f_enum) << "  return " << (*c_iter)->get_name() << ";" << endl;
   }
@@ -485,6 +473,7 @@ void t_java_generator::generate_consts(std::vector<t_const*> consts) {
   indent_up();
   vector<t_const*>::iterator c_iter;
   for (c_iter = consts.begin(); c_iter != consts.end(); ++c_iter) {
+    generate_java_doc(f_consts, (*c_iter));
     print_const_value(f_consts,
                       (*c_iter)->get_name(),
                       (*c_iter)->get_type(),
@@ -631,7 +620,7 @@ string t_java_generator::render_const_value(ofstream& out, string name, t_type* 
       throw "compiler error: no const of base type " + t_base_type::t_base_name(tbase);
     }
   } else if (type->is_enum()) {
-    render << type_name(type, false, false) << "." << value->get_identifier();
+    render << value->get_identifier();
   } else {
     string t = tmp("tmp");
     print_const_value(out, t, type, value, true);
@@ -1392,7 +1381,7 @@ void t_java_generator::generate_java_struct_compare_to(ofstream& out, t_struct* 
     indent(out) << "  return lastComparison;" << endl;
     indent(out) << "}" << endl;
 
-    indent(out) << "if (" << generate_isset_check(field) << ") {";
+    indent(out) << "if (" << generate_isset_check(field) << ") {" << endl;
     indent(out) << "  lastComparison = TBaseHelper.compareTo(this." << field->get_name() << ", typedOther." << field->get_name() << ");" << endl;
     indent(out) << "  if (lastComparison != 0) {" << endl;
     indent(out) << "    return lastComparison;" << endl;
@@ -1854,21 +1843,46 @@ void t_java_generator::generate_java_bean_boilerplate(ofstream& out,
 
     // Simple getter
     generate_java_doc(out, field);
-    indent(out) << "public " << type_name(type);
-    if (type->is_base_type() &&
-        ((t_base_type*)type)->get_base() == t_base_type::TYPE_BOOL) {
-      out << " is";
+    if (type->is_base_type() && ((t_base_type*)type)->is_binary()) {
+      indent(out) << "public byte[] get" << cap_name << "() {" << endl;
+      indent(out) << "  set" << cap_name << "(TBaseHelper.rightSize(" << field_name << "));" << endl;
+      indent(out) << "  return " << field_name << ".array();" << endl;
+      indent(out) << "}" << endl << endl;
+
+      indent(out) << "public ByteBuffer " << get_cap_name("bufferFor") << cap_name << "() {" << endl;
+      indent(out) << "  return " << field_name << ";" << endl;
+      indent(out) << "}" << endl << endl;
     } else {
-      out << " get";
+      indent(out) << "public " << type_name(type);
+      if (type->is_base_type() &&
+          ((t_base_type*)type)->get_base() == t_base_type::TYPE_BOOL) {
+        out << " is";
+      } else {
+        out << " get";
+      }
+      out << cap_name << "() {" << endl;
+      indent_up();
+      indent(out) << "return this." << field_name << ";" << endl;
+      indent_down();
+      indent(out) << "}" << endl << endl;
     }
-    out << cap_name << "() {" << endl;
-    indent_up();
-    indent(out) << "return this." << field_name << ";" << endl;
-    indent_down();
-    indent(out) << "}" << endl << endl;
 
     // Simple setter
     generate_java_doc(out, field);
+    if (type->is_base_type() && ((t_base_type*)type)->is_binary()) {
+      indent(out) << "public ";
+      if (bean_style_) {
+        out << "void";
+      } else {
+        out << type_name(tstruct);
+      }
+      out << " set" << cap_name << "(byte[] " << field_name << ") {" << endl;
+      indent(out) << "  set" << cap_name << "(ByteBuffer.wrap(" << field_name << "));" << endl;
+      if (!bean_style_) {
+        indent(out) << "  return this;" << endl;
+      }
+      indent(out) << "}" << endl << endl;
+    }
     indent(out) << "public ";
     if (bean_style_) {
       out << "void";
@@ -2098,6 +2112,8 @@ void t_java_generator::generate_field_value_meta_data(std::ofstream& out, t_type
     indent(out) << "new FieldValueMetaData(" << get_java_type_string(type);
     if (type->is_typedef()) {
       indent(out) << ", \"" << ((t_typedef*)type)->get_symbolic() << "\"";
+    } else if (((t_base_type*)type)->is_binary()) {
+      indent(out) << ", true";
     }
   }
   out << ")";
@@ -2426,7 +2442,6 @@ void t_java_generator::generate_service_async_client(t_service* tservice) {
   string extends_client = "";
   if (tservice->get_extends() != NULL) {
     extends = type_name(tservice->get_extends()) + ".AsyncClient";
-    // extends_client = " extends " + extends + ".AsyncClient";
   }
 
   indent(f_service_) <<
@@ -2467,7 +2482,8 @@ void t_java_generator::generate_service_async_client(t_service* tservice) {
     // Main method body   
     indent(f_service_) << "public " << function_signature_async(*f_iter, false) << " throws TException {" << endl;
     indent(f_service_) << "  checkReady();" << endl;
-    indent(f_service_) << "  " << funclassname << " method_call = new " + funclassname + "(" << async_argument_list(*f_iter, arg_struct, ret_type) << ", this, protocolFactory, transport);" << endl;    
+    indent(f_service_) << "  " << funclassname << " method_call = new " + funclassname + "(" << async_argument_list(*f_iter, arg_struct, ret_type) << ", this, protocolFactory, transport);" << endl;
+    indent(f_service_) << "  this.currentMethod = method_call;" << endl;
     indent(f_service_) << "  manager.call(method_call);" << endl;
     indent(f_service_) << "}" << endl;
 
@@ -3706,14 +3722,12 @@ void t_java_generator::generate_deep_copy_container(ofstream &out, std::string s
 
 void t_java_generator::generate_deep_copy_non_container(ofstream& out, std::string source_name, std::string dest_name, t_type* type) {
   if (type->is_base_type() || type->is_enum() || type->is_typedef()) {
-    // binary fields need to be copied with System.arraycopy
-    if (((t_base_type*)type)->is_binary()){
-      out << "ByteBuffer.wrap(new byte[" << source_name << ".limit() - " << source_name << ".arrayOffset()]);" << endl;
-      indent(out) << "System.arraycopy(" << source_name << ".array(), " << source_name << ".arrayOffset(), " << dest_name << ".array(), 0, " << source_name << ".limit() - " << source_name << ".arrayOffset())";
-    }
-    // everything else can be copied directly
-    else
+    if (((t_base_type*)type)->is_binary()) {
+      out << "TBaseHelper.copyBinary(" << source_name << ");" << endl;
+    } else {
+      // everything else can be copied directly
       out << source_name;
+    }
   } else {
     out << "new " << type_name(type, true, true) << "(" << source_name << ")";
   }
@@ -3873,31 +3887,39 @@ void t_java_generator::generate_java_struct_clear(std::ofstream& out, t_struct* 
 
   indent_up();
   for (m_iter = members.begin(); m_iter != members.end(); ++m_iter) {
-    t_type* t = get_true_type((*m_iter)->get_type());
-    if ((*m_iter)->get_value() != NULL) {
-      print_const_value(out, "this." + (*m_iter)->get_name(), t, (*m_iter)->get_value(), true, true);
-    } else {
-      if (type_can_be_null(t)) {
-        indent(out) << "this." << (*m_iter)->get_name() << " = null;" << endl;
-      } else {
-        // must be a base type
-        // means it also needs to be explicitly unset
-        indent(out) << "set" << get_cap_name((*m_iter)->get_name()) << get_cap_name("isSet") << "(false);" << endl;
-        switch (((t_base_type*)t)->get_base()) {
-          case t_base_type::TYPE_BYTE:
-          case t_base_type::TYPE_I16:
-          case t_base_type::TYPE_I32:
-          case t_base_type::TYPE_I64:
-            indent(out) << "this." << (*m_iter)->get_name() << " = 0;" << endl;
-            break;
-          case t_base_type::TYPE_DOUBLE:
-            indent(out) << "this." << (*m_iter)->get_name() << " = 0.0;" << endl;
-            break;
-          case t_base_type::TYPE_BOOL:
-            indent(out) << "this." << (*m_iter)->get_name() << " = false;" << endl;
-            break;
-        }
-      }
+    t_field* field = *m_iter;
+    t_type* t = get_true_type(field->get_type());
+
+    if (field->get_value() != NULL) {
+      print_const_value(out, "this." + field->get_name(), t, field->get_value(), true, true);
+      continue;
+    }
+
+    if (type_can_be_null(t)) {
+      indent(out) << "this." << field->get_name() << " = null;" << endl;
+      continue;
+    }
+
+    // must be a base type
+    // means it also needs to be explicitly unset
+    indent(out) << "set" << get_cap_name(field->get_name()) << get_cap_name("isSet") << "(false);" << endl;
+    t_base_type* base_type = (t_base_type*) t;
+
+    switch (base_type->get_base()) {
+      case t_base_type::TYPE_BYTE:
+      case t_base_type::TYPE_I16:
+      case t_base_type::TYPE_I32:
+      case t_base_type::TYPE_I64:
+        indent(out) << "this." << field->get_name() << " = 0;" << endl;
+        break;
+      case t_base_type::TYPE_DOUBLE:
+        indent(out) << "this." << field->get_name() << " = 0.0;" << endl;
+        break;
+      case t_base_type::TYPE_BOOL:
+        indent(out) << "this." << field->get_name() << " = false;" << endl;
+        break;
+      default:
+        throw "unsupported type: " + base_type->get_name() + " for field " + field->get_name();
     }
   }
   indent_down();
@@ -3910,5 +3932,5 @@ THRIFT_REGISTER_GENERATOR(java, "Java",
 "    private-members: Members will be private, but setter methods will return 'this' like usual.\n"
 "    nocamel:         Do not use CamelCase field accessors with beans.\n"
 "    hashcode:        Generate quality hashCode methods.\n"
-);
+)
 

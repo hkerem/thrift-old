@@ -19,7 +19,7 @@
 
 AC_PREREQ(2.65)
 
-AC_INIT([thrift], [0.5.0])
+AC_INIT([thrift], [0.6.0])
 
 AC_CONFIG_AUX_DIR([.])
 
@@ -61,6 +61,12 @@ AC_ARG_VAR([PERL_PREFIX], [Prefix for installing Perl modules.
                            Default = "/usr/local/lib"])
 AS_IF([test "x$PERL_PREFIX" = x], [PERL_PREFIX="/usr/local"])
 
+AC_ARG_VAR([CABAL_CONFIGURE_FLAGS],
+           [Extra flags to pass to cabal: "cabal Setup.lhs configure $CABAL_CONFIGURE_FLAGS".
+            (Typically used to set --user or force --global.)])
+
+AC_SUBST(CABAL_CONFIGURE_FLAGS)
+
 AC_PROG_CC
 AC_PROG_CPP
 AC_PROG_CXX
@@ -93,7 +99,17 @@ AM_CONDITIONAL([WITH_CPP], [test "$have_cpp" = "yes"])
 AM_CONDITIONAL([AMX_HAVE_LIBEVENT], [test "$have_libevent" = "yes"])
 AM_CONDITIONAL([AMX_HAVE_ZLIB], [test "$have_zlib" = "yes"])
 
-AX_THRIFT_LIB(csharp, [CSharp], yes)
+AX_THRIFT_LIB(c_glib, [C (GLib)], no)
+if test "$with_c_glib" = "yes"; then
+  PKG_CHECK_MODULES([GLIB], [glib-2.0 >= 2.0], have_glib2=yes, have_glib2=no)
+  PKG_CHECK_MODULES([GOBJECT], [gobject-2.0 >= 2.0], have_gobject2=yes, have_gobject2=no)
+  if test "$have_glib2" = "yes" -a "$have_gobject2" = "yes" ; then
+    have_c_glib="yes"
+  fi
+fi
+AM_CONDITIONAL(WITH_C_GLIB, [test "$have_glib2" = "yes" -a "$have_gobject2" = "yes"])
+
+AX_THRIFT_LIB(csharp, [C#], yes)
 if test "$with_csharp" = "yes";  then
   PKG_CHECK_MODULES(MONO, mono >= 2.0.0, net_3_5=yes, net_3_5=no)
   PKG_CHECK_MODULES(MONO, mono >= 1.2.4, have_mono=yes, have_mono=no)
@@ -150,6 +166,8 @@ if test "$with_python" = "yes";  then
 fi
 AM_CONDITIONAL(WITH_PYTHON, [test "$have_python" = "yes"])
 
+AC_PATH_PROG([TRIAL], [trial])
+
 AX_THRIFT_LIB(perl, [Perl], yes)
 if test "$with_perl" = "yes"; then
   AC_PATH_PROG([PERL], [perl])
@@ -175,9 +193,12 @@ AM_CONDITIONAL(WITH_PHP, [test "$have_php" = "yes"])
 AX_THRIFT_LIB(php_extension, [PHP_EXTENSION], yes)
 if test "$with_php_extension" = "yes"; then
   AC_PATH_PROG([PHP_CONFIG], [php-config])
-  AC_CONFIG_SUBDIRS([lib/php/src/ext/thrift_protocol])
+  if test -n "$PHP_CONFIG" ; then
+    AC_CONFIG_SUBDIRS([lib/php/src/ext/thrift_protocol])
+    have_php_extension="yes"
+  fi
 fi
-AM_CONDITIONAL(WITH_PHP_EXTENSION, [test -n "$PHP_CONFIG"])
+AM_CONDITIONAL(WITH_PHP_EXTENSION, [test "$have_php_extension" = "yes"])
 
 AX_THRIFT_LIB(ruby, [Ruby], yes)
 have_ruby=no
@@ -191,6 +212,23 @@ fi
 AM_CONDITIONAL(WITH_RUBY, [test "$have_ruby" = "yes"])
 AM_CONDITIONAL(HAVE_RSPEC, [test "x$RSPEC" != "x"])
 
+AX_THRIFT_LIB(haskell, [Haskell], yes)
+have_haskell=no
+RUNHASKELL=true
+CABAL=true
+if test "$with_haskell" = "yes"; then
+  AC_PATH_PROG([CABAL], [cabal])
+  AC_PATH_PROG([RUNHASKELL], [runhaskell])
+  if test "x$CABAL" != "x" -a "x$RUNHASKELL" != "x"; then
+    have_haskell="yes"
+  else
+    RUNHASKELL=true
+    CABAL=true
+  fi
+fi
+AC_SUBST(CABAL)
+AC_SUBST(RUNHASKELL)
+AM_CONDITIONAL(WITH_HASKELL, [test "$have_haskell" = "yes"])
 
 AC_C_CONST
 AC_C_INLINE
@@ -251,6 +289,7 @@ AC_CHECK_DECL([AI_ADDRCONFIG], [],
 ])
 
 AC_FUNC_ALLOCA
+AC_FUNC_FORK
 AC_FUNC_MALLOC
 AC_FUNC_MEMCMP
 AC_FUNC_REALLOC
@@ -277,6 +316,7 @@ AC_CHECK_FUNCS([strstr])
 AC_CHECK_FUNCS([strtol])
 AC_CHECK_FUNCS([sqrt])
 dnl The following functions are optional.
+AC_CHECK_FUNCS([alarm])
 AC_CHECK_FUNCS([clock_gettime])
 AC_CHECK_FUNCS([sched_get_priority_min])
 AC_CHECK_FUNCS([sched_get_priority_max])
@@ -285,8 +325,18 @@ if test "$cross_compiling" = "no" ; then
   AX_SIGNED_RIGHT_SHIFT
 fi
 
+dnl autoscan thinks we need this macro because we have a member function
+dnl called "error".  Invoke the macro but don't run the check so autoscan
+dnl thinks we are in the clear.  It's highly unlikely that we will ever
+dnl actually use the function that this checks for.
+if false ; then
+  AC_FUNC_ERROR_AT_LINE
+fi
+
 AX_THRIFT_GEN(cpp, [C++], yes)
 AM_CONDITIONAL([THRIFT_GEN_cpp], [test "$ax_thrift_gen_cpp" = "yes"])
+AX_THRIFT_GEN(c_glib, [C (GLib)], yes)
+AM_CONDITIONAL([THRIFT_GEN_c_glib], [test "$ax_thrift_gen_c_glib" = "yes"])
 AX_THRIFT_GEN(java, [Java], yes)
 AM_CONDITIONAL([THRIFT_GEN_java], [test "$ax_thrift_gen_java" = "yes"])
 AX_THRIFT_GEN(as3, [AS3], yes)
@@ -317,6 +367,31 @@ AX_THRIFT_GEN(html, [HTML], yes)
 AM_CONDITIONAL([THRIFT_GEN_html], [test "$ax_thrift_gen_html" = "yes"])
 AX_THRIFT_GEN(js, [JavaScript], yes)
 AM_CONDITIONAL([THRIFT_GEN_js], [test "$ax_thrift_gen_js" = "yes"])
+AX_THRIFT_GEN(javame, [JavaME], yes)
+AM_CONDITIONAL([THRIFT_GEN_javame], [test "$ax_thrift_gen_javame" = "yes"])
+
+# --- Coverage hooks ---
+
+AC_ARG_ENABLE(coverage,
+              [  --enable-coverage      turn on -fprofile-arcs -ftest-coverage],
+              [case "${enableval}" in
+                yes) ENABLE_COVERAGE=1 ;;
+                no) ENABLE_COVERAGE=0 ;;
+                *) AC_MSG_ERROR(bad value ${enableval} for --enable-cov) ;;
+              esac],
+              [ENABLE_COVERAGE=2])
+
+if test "x[$]ENABLE_COVERAGE" = "x1"; then
+  AC_MSG_WARN(enable coverage)
+  GCOV_CFLAGS="`echo \"[$]CFLAGS\" | perl -pe 's/-O\d+//g;'` -fprofile-arcs -ftest-coverage"
+  GCOV_CXXFLAGS="`echo \"[$]CXXFLAGS\" | perl -pe 's/-O\d+//g;'` -fprofile-arcs -ftest-coverage"
+  GCOV_LDFLAGS="-XCClinker -fprofile-arcs -XCClinker -ftest-coverage"
+fi
+
+AC_SUBST(ENABLE_COVERAGE)
+AC_SUBST(GCOV_CFLAGS)
+AC_SUBST(GCOV_CXXFLAGS)
+AC_SUBST(GCOV_LDFLAGS)
 
 AC_CONFIG_HEADERS(config.h:config.hin)
 
@@ -327,12 +402,16 @@ AC_CONFIG_FILES([
   lib/Makefile
   lib/cpp/Makefile
   lib/cpp/test/Makefile
-  lib/cpp/thrift.pc
   lib/cpp/thrift-nb.pc
   lib/cpp/thrift-z.pc
+  lib/cpp/thrift.pc
+  lib/c_glib/Makefile
+  lib/c_glib/thrift_c_glib.pc
+  lib/c_glib/test/Makefile
   lib/csharp/Makefile
   lib/erl/Makefile
   lib/erl/src/Makefile
+  lib/hs/Makefile
   lib/java/Makefile
   lib/perl/Makefile
   lib/perl/test/Makefile
@@ -340,9 +419,14 @@ AC_CONFIG_FILES([
   lib/py/Makefile
   lib/rb/Makefile
   test/Makefile
+  test/hs/Makefile
   test/py/Makefile
+  test/py.twisted/Makefile
   test/rb/Makefile
 ])
+
+AC_CONFIG_FILES([lib/c_glib/test/test-wrapper.sh],
+                [chmod +x lib/c_glib/test/test-wrapper.sh])
 
 AC_OUTPUT
 
@@ -353,10 +437,12 @@ echo
 echo "Building code generators ..... :$thrift_generators"
 echo
 echo "Building C++ Library ......... : $have_cpp"
+echo "Building C (GLib) Library .... : $have_c_glib"
 echo "Building Java Library ........ : $have_java"
 echo "Building C# Library .......... : $have_csharp"
 echo "Building Python Library ...... : $have_python"
 echo "Building Ruby Library ........ : $have_ruby"
+echo "Building Haskell Library ..... : $have_haskell"
 echo "Building Perl Library ........ : $have_perl"
 echo "Building PHP Library ......... : $have_php"
 echo "Building Erlang Library ...... : $have_erlang"
@@ -379,10 +465,19 @@ if test "$have_python" = "yes" ; then
   echo
   echo "Using Python ................. : $PYTHON"
 fi
+if test "$have_php" = "yes" ; then
+  echo
+  echo "Using php-config ............. : $PHP_CONFIG"
+fi
 if test "$have_ruby" = "yes" ; then
   echo
   echo "Using Ruby ................... : $RUBY"
   echo "Using rspec .................. : $RSPEC"
+fi
+if test "$have_haskell" = "yes" ; then
+  echo
+  echo "Using Haskell ................ : $RUNHASKELL"
+  echo "Using Cabal .................. : $CABAL"
 fi
 if test "$have_perl" = "yes" ; then
   echo
