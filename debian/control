@@ -7,5 +7,5 @@ Standards-Version: 3.8.0
 
 Package: thrift
 Architecture: any
-Depends: erlang-nox, python, sun-java6-jre
+Depends: erlang-nox, python
 Description: Thrift is a software framework for scalable cross-language services development. It combines a software stack with a code generation engine to build services that work efficiently and seamlessly between C++, Java, Python, PHP, Ruby, Erlang, Perl, Haskell, C#, Cocoa, Smalltalk, and OCaml.
